@@ -3,6 +3,10 @@
     {
       "path": "/api/fetch-daily-fixtures",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/fetch-basketball-fixtures",
+      "schedule": "5 1 * * *"
     }
   ]
 }
