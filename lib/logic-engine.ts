@@ -135,3 +135,70 @@ export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixtur
     home_spread: homeSpread,
   };
 }
+
+// Add this to the BOTTOM of lib/logic-engine.ts
+
+export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey: string): Promise<AnalyzedBasketballFixture> {
+  try {
+    // 1. Ask API-Basketball for real Vegas Odds (Bookmaker ID 1 is typically Bet365/Bwin)
+    const response = await fetch(`https://v1.basketball.api-sports.io/odds?game=${fixture.fixture_id}`, {
+      method: 'GET',
+      headers: {
+        'x-apisports-key': apiKey,
+      },
+      next: { revalidate: 86400 } // Cache for 24 hours to protect API limits
+    });
+
+    const data = await response.json();
+    const bookmakers = data.response?.[0]?.bookmakers;
+
+    // 2. If we got real odds data back, parse it!
+    if (bookmakers && bookmakers.length > 0) {
+      const markets = bookmakers[0].bets;
+      
+      let homeWinProb = 50;
+      let awayWinProb = 50;
+      let homeSpread = 0;
+      let projectedTotal = 210;
+
+      // Extract Moneyline (Home/Away)
+      const moneyline = markets.find((m: any) => m.name === "Home/Away");
+      if (moneyline) {
+        const homeOdds = parseFloat(moneyline.values.find((v: any) => v.value === "Home")?.odd || "1.9");
+        const awayOdds = parseFloat(moneyline.values.find((v: any) => v.value === "Away")?.odd || "1.9");
+        // Convert decimal odds to implied probability
+        homeWinProb = Math.round((1 / homeOdds) * 100);
+        awayWinProb = Math.round((1 / awayOdds) * 100);
+      }
+
+      // Extract Point Spread (Asian Handicap)
+      const spreadMarket = markets.find((m: any) => m.name === "Asian Handicap");
+      if (spreadMarket && spreadMarket.values.length > 0) {
+        // Vegas formats it like "Home -5.5", we just need the number
+        const rawSpread = spreadMarket.values[0].value.replace("Home ", "").replace("Away ", "");
+        homeSpread = parseFloat(rawSpread) || 0;
+      }
+
+      // Extract Over/Under Total Points
+      const totalMarket = markets.find((m: any) => m.name === "Over/Under");
+      if (totalMarket && totalMarket.values.length > 0) {
+        // Vegas formats it like "Over 215.5"
+        const rawTotal = totalMarket.values[0].value.replace("Over ", "").replace("Under ", "");
+        projectedTotal = Math.round(parseFloat(rawTotal)) || 210;
+      }
+
+      return {
+        ...fixture,
+        home_win_probability: homeWinProb,
+        away_win_probability: awayWinProb,
+        projected_total_points: projectedTotal,
+        home_spread: homeSpread,
+      };
+    }
+  } catch (error) {
+    console.error(`Failed to fetch real odds for basketball game ${fixture.fixture_id}:`, error);
+  }
+
+  // 3. FALLBACK: If the API fails or the game doesn't have odds yet, use our mock math
+  return analyzeBasketballFixture(fixture);
+}
