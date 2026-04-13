@@ -23,23 +23,23 @@ interface MatchCardProps {
 
 function getConfidenceColor(confidence: number): string {
   if (confidence >= 80) return "text-accent-green";
-  if (confidence >= 65) return "text-accent-emerald";
-  if (confidence >= 50) return "text-accent-amber";
-  return "text-accent-orange";
+  if (confidence >= 70) return "text-accent-amber";
+  if (confidence >= 50) return "text-accent-orange";
+  return "text-accent-red";
 }
 
 function getConfidenceBg(confidence: number): string {
   if (confidence >= 80) return "bg-accent-green/10 border-accent-green/30";
-  if (confidence >= 65) return "bg-accent-emerald/10 border-accent-emerald/30";
-  if (confidence >= 50) return "bg-accent-amber/10 border-accent-amber/30";
-  return "bg-accent-orange/10 border-accent-orange/30";
+  if (confidence >= 70) return "bg-accent-amber/10 border-accent-amber/30";
+  if (confidence >= 50) return "bg-accent-orange/10 border-accent-orange/30";
+  return "bg-accent-red/10 border-accent-red/30";
 }
 
 function getConfidenceBarColor(confidence: number): string {
   if (confidence >= 80) return "bg-accent-green";
-  if (confidence >= 65) return "bg-accent-emerald";
-  if (confidence >= 50) return "bg-accent-amber";
-  return "bg-accent-orange";
+  if (confidence >= 70) return "bg-accent-amber";
+  if (confidence >= 50) return "bg-accent-orange";
+  return "bg-accent-red";
 }
 
 export default function MatchCard({
