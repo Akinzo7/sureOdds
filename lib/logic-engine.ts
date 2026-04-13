@@ -85,3 +85,53 @@ export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): 
   // 3. FALLBACK: If the API fails or we hit our limit, fall back to our seeded math logic
   return analyzeFixture(fixture);
 }
+
+// Add this to the BOTTOM of lib/logic-engine.ts
+
+export interface AnalyzedBasketballFixture {
+  fixture_id: number;
+  sport_type: string;
+  match_date: string;
+  home_team_id: number;
+  away_team_id: number;
+  home_team_name: string;
+  away_team_name: string;
+  status: string;
+  home_win_probability: number;
+  away_win_probability: number;
+  projected_total_points: number;
+  home_spread: number;
+}
+
+export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixture {
+  // Seeded random logic so percentages stay consistent on refresh
+  const seed = fixture.fixture_id || Math.random() * 10000;
+  
+  const pseudoRandom = (hash: number) => {
+    let x = Math.sin(hash++) * 10000;
+    return x - Math.floor(x);
+  };
+
+  // Generate a mock win probability for the home team (between 30 and 85)
+  const homeWinProb = Math.floor(30 + pseudoRandom(Number(seed) + 1) * 55);
+  // Basketball has no ties, so away probability is the exact inverse
+  const awayWinProb = 100 - homeWinProb; 
+  
+  // Projected Total Points (Typically between 190 and 235 for NBA/high-level games)
+  const projectedTotal = Math.floor(190 + pseudoRandom(Number(seed) + 2) * 45); 
+  
+  // Calculate the Point Spread. 
+  // If a team has a huge win probability advantage, the negative spread increases.
+  const winDiff = homeWinProb - awayWinProb; 
+  const rawSpread = -(winDiff / 4); // E.g., 60% win diff = -15 point spread
+  // Round to the nearest 0.5 (e.g., -7.5)
+  const homeSpread = Math.round(rawSpread * 2) / 2;
+
+  return {
+    ...fixture,
+    home_win_probability: homeWinProb,
+    away_win_probability: awayWinProb,
+    projected_total_points: projectedTotal,
+    home_spread: homeSpread,
+  };
+}
