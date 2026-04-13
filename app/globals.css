@@ -1,26 +1,164 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-surface: #18181b;
+  --color-surface-hover: #27272a;
+  --color-border: #3f3f46;
+  --color-border-subtle: #27272a;
+  --color-muted: #a1a1aa;
+  --color-accent-green: #22c55e;
+  --color-accent-emerald: #10b981;
+  --color-accent-amber: #f59e0b;
+  --color-accent-orange: #f97316;
+  --color-accent-red: #ef4444;
+  --color-accent-blue: #3b82f6;
+  --color-accent-violet: #8b5cf6;
+  --color-accent-cyan: #06b6d4;
+  --color-glass: rgba(24, 24, 27, 0.7);
+  --color-glass-border: rgba(63, 63, 70, 0.5);
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* === Base Reset === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
+/* === Animations === */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.5);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* === Glass Effect === */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+}
+
+/* === Gradient Text === */
+.gradient-text {
+  background: linear-gradient(135deg, #22c55e 0%, #06b6d4 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* === Grid Pattern Background === */
+.bg-grid {
+  background-image: linear-gradient(
+      rgba(63, 63, 70, 0.15) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(63, 63, 70, 0.15) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* === Radial Glow === */
+.radial-glow {
+  background: radial-gradient(
+    ellipse 600px 400px at 50% 0%,
+    rgba(34, 197, 94, 0.08),
+    transparent
+  );
 }
