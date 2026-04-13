@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/fetch-daily-fixtures",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}
