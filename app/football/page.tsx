@@ -1,48 +1,50 @@
 import { createClient } from "@supabase/supabase-js";
-import { analyzeFixture } from "@/lib/logic-engine";
+import { analyzeFixture, analyzeFixtureWithRealData } from "@/lib/logic-engine";
 import DashboardClient from "./DashboardClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function FootballDashboardServer() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const apiSportsKey = process.env.API_SPORTS_KEY!;
 
   if (!supabaseUrl || !supabaseKey) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
-        <p className="text-lg font-medium text-accent-red">
-          Supabase Credentials Missing
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Please check your environment variables.
-        </p>
+      <div className="flex justify-center py-20 text-red-500">
+        Supabase Credentials Missing. Check .env.local
       </div>
     );
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  // 1. Fetch the raw fixtures from your database
   const { data: fixtures, error } = await supabase
     .from("fixtures")
     .select("*")
     .order("match_date", { ascending: true });
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
-        <p className="text-lg font-medium text-accent-red">
-          Error loading fixtures
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          {error.message}
-        </p>
-      </div>
-    );
+  if (error || !fixtures) {
+    return <div className="p-8 text-red-500">Error loading fixtures: {error?.message}</div>;
   }
 
-  // Pass through the logic engine
-  const analyzedFixtures = (fixtures || []).map(analyzeFixture);
+  // 2. THE HYBRID STRATEGY
+  // We only grab the first 3 matches to send to the real API to protect your free tier limits.
+  const topMatchesToAnalyzeDeeply = fixtures.slice(0, 3);
+  const remainingMatches = fixtures.slice(3);
 
-  return <DashboardClient fixtures={analyzedFixtures} />;
+  // 3. Run the top 3 matches through the REAL API-Sports Prediction Engine
+  const realAnalyzedFixtures = await Promise.all(
+    topMatchesToAnalyzeDeeply.map((match) => analyzeFixtureWithRealData(match, apiSportsKey))
+  );
+
+  // 4. Run the remaining matches through the seeded mock engine
+  const mockAnalyzedFixtures = remainingMatches.map(analyzeFixture);
+
+  // 5. Combine them back together
+  const fullyAnalyzedFixtures = [...realAnalyzedFixtures, ...mockAnalyzedFixtures];
+
+  // 6. Pass the combined, intelligent data to your beautiful UI
+  return <DashboardClient fixtures={fullyAnalyzedFixtures} />;
 }
