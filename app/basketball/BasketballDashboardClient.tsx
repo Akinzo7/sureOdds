@@ -90,7 +90,7 @@ const matchTime = fixture.match_date
           homeTeamLogo: "🏀",
           awayTeamLogo: "⛹️",
           matchTime: matchTime,
-          league: fixture.sport_type || "Basketball", 
+        league: fixture.league_name || "Basketball",
           confidence: Math.round(confidence),
           odds: Number(odds.toFixed(2)),
           prediction,

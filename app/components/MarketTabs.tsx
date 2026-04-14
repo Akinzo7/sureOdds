@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Target,
-  Trophy,
-  TrendingUp,
-  Flame,
-  Swords,
-  ShieldMinus,
-} from "lucide-react";
+import { Trophy, TrendingUp, TrendingDown, Target } from "lucide-react";
 
 export interface MarketTab {
   id: string;
@@ -16,22 +9,14 @@ export interface MarketTab {
 }
 
 export const FOOTBALL_MARKETS: MarketTab[] = [
-  { id: "over-1.5", label: "Over 1.5", icon: <Target className="h-4 w-4" /> },
-  {
-    id: "straight-win",
-    label: "Straight Win",
-    icon: <Trophy className="h-4 w-4" />,
-  },
-  {
-    id: "over-2.5",
-    label: "Over 2.5",
-    icon: <TrendingUp className="h-4 w-4" />,
-  },
-  { id: "over-3.5", label: "Over 3.5", icon: <Flame className="h-4 w-4" /> },
-  { id: "btts", label: "BTTS", icon: <Swords className="h-4 w-4" /> },
-  { id: "under-1.5", label: "Under 1.5", icon: <ShieldMinus className="h-4 w-4" /> },
-  { id: "under-2.5", label: "Under 2.5", icon: <ShieldMinus className="h-4 w-4" /> },
-  { id: "under-3.5", label: "Under 3.5", icon: <ShieldMinus className="h-4 w-4" /> },
+  { id: "straight-win", label: "Straight Win", icon: <Trophy className="h-4 w-4" /> },
+  { id: "over-1.5", label: "Over 1.5", icon: <TrendingUp className="h-4 w-4" /> },
+  { id: "under-1.5", label: "Under 1.5", icon: <TrendingDown className="h-4 w-4" /> },
+  { id: "over-2.5", label: "Over 2.5", icon: <TrendingUp className="h-4 w-4" /> },
+  { id: "under-2.5", label: "Under 2.5", icon: <TrendingDown className="h-4 w-4" /> },
+  { id: "over-3.5", label: "Over 3.5", icon: <TrendingUp className="h-4 w-4" /> },
+  { id: "under-3.5", label: "Under 3.5", icon: <TrendingDown className="h-4 w-4" /> },
+  { id: "btts", label: "BTTS", icon: <Target className="h-4 w-4" /> },
 ];
 
 interface MarketTabsProps {
