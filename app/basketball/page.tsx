@@ -21,7 +21,7 @@ export default async function BasketballPage() {
 
   // 1. Fetch raw basketball games from Supabase
 const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
 
   // 1. Fetch raw basketball games from Supabase (Today and Future ONLY)
   const { data: fixtures, error } = await supabase

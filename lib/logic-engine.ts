@@ -31,6 +31,7 @@ export function analyzeFixture(fixture: any): AnalyzedFixture {
 
   return {
     ...fixture,
+    league_name: fixture.league_name || "Unknown League",
     over1_5_probability: getProb(1),
     over2_5_probability: getProb(2),
     over3_5_probability: getProb(3),
@@ -131,6 +132,7 @@ export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixtur
 
   return {
     ...fixture,
+    league_name: fixture.league_name || "Unknown League",
     home_win_probability: homeWinProb,
     away_win_probability: awayWinProb,
     projected_total_points: projectedTotal,

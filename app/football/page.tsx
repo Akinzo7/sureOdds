@@ -21,7 +21,7 @@ export default async function FootballDashboardServer() {
 
   // Get midnight today to filter out old games
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
 
   // 1. Fetch the raw fixtures from your database (Today and Future ONLY)
   const { data: fixtures, error } = await supabase
