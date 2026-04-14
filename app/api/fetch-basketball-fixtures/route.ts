@@ -18,6 +18,7 @@ export async function GET() {
 
     // Get today's date in YYYY-MM-DD format
     const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
     const formattedDate = today.toISOString().split('T')[0];
 
     // Fetch games from API-Basketball

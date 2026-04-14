@@ -26,7 +26,8 @@ export async function GET() {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get today's date in YYYY-MM-DD format
-    const today = new Date();
+   const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
     const formattedDate = today.toISOString().split('T')[0];
 
     // Fetch fixtures from API-Sports

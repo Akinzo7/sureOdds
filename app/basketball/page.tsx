@@ -20,9 +20,14 @@ export default async function BasketballPage() {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // 1. Fetch raw basketball games from Supabase
+const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1. Fetch raw basketball games from Supabase (Today and Future ONLY)
   const { data: fixtures, error } = await supabase
     .from("basketball_fixtures")
     .select("*")
+    .gte("match_date", today.toISOString()) // <-- ADD THIS LINE
     .order("match_date", { ascending: true });
 
   if (error || !fixtures) {
