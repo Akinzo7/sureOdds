@@ -9,32 +9,42 @@ export interface AnalyzedFixture {
   away_team_name: string;
   status: string;
   over1_5_probability: number;
+  under1_5_probability: number; // NEW
   over2_5_probability: number;
+  under2_5_probability: number; // NEW
   over3_5_probability: number;
+  under3_5_probability: number; // NEW
   btts_probability: number;
   home_win_probability: number;
   away_win_probability: number;
 }
 
 export function analyzeFixture(fixture: any): AnalyzedFixture {
-  // Use a seeded random based on fixture ID so probabilities stay stable 
+  // Use a seeded random based on fixture ID so probabilities stay stable
   // between renders for the same fixture.
   const seed = fixture.fixture_id || Math.random() * 10000;
-  
+
   const pseudoRandom = (hash: number) => {
     let x = Math.sin(hash++) * 10000;
     return x - Math.floor(x);
   };
 
   // Generate a mock probability between 40 and 95
-  const getProb = (offset: number) => Math.floor(40 + pseudoRandom(Number(seed) + offset) * 55);
+  const getProb = (offset: number) =>
+    Math.floor(40 + pseudoRandom(Number(seed) + offset) * 55);
+  const ov15 = getProb(1);
+  const ov25 = getProb(2);
+  const ov35 = getProb(3);
 
   return {
     ...fixture,
     league_name: fixture.league_name || "Unknown League",
-    over1_5_probability: getProb(1),
-    over2_5_probability: getProb(2),
-    over3_5_probability: getProb(3),
+    over1_5_probability: ov15,
+    under1_5_probability: 100 - ov15, // The exact inverse
+    over2_5_probability: ov25,
+    under2_5_probability: 100 - ov25,
+    over3_5_probability: ov35,
+    under3_5_probability: 100 - ov35,
     btts_probability: getProb(4),
     home_win_probability: getProb(5),
     away_win_probability: getProb(6),
@@ -43,17 +53,23 @@ export function analyzeFixture(fixture: any): AnalyzedFixture {
 
 // Add this to the BOTTOM of your existing lib/logic-engine.ts file
 
-export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): Promise<AnalyzedFixture> {
+export async function analyzeFixtureWithRealData(
+  fixture: any,
+  apiKey: string,
+): Promise<AnalyzedFixture> {
   try {
     // 1. Ask API-Sports for the official prediction data for this specific match
-    const response = await fetch(`https://v3.football.api-sports.io/predictions?fixture=${fixture.fixture_id}`, {
-      method: 'GET',
-      headers: {
-        'x-apisports-key': apiKey,
+    const response = await fetch(
+      `https://v3.football.api-sports.io/predictions?fixture=${fixture.fixture_id}`,
+      {
+        method: "GET",
+        headers: {
+          "x-apisports-key": apiKey,
+        },
+        // Cache the response for 24 hours so we don't waste API calls if you refresh the page
+        next: { revalidate: 86400 },
       },
-      // Cache the response for 24 hours so we don't waste API calls if you refresh the page
-      next: { revalidate: 86400 } 
-    });
+    );
 
     const data = await response.json();
     const prediction = data.response?.[0]?.predictions;
@@ -61,27 +77,36 @@ export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): 
     // 2. If the API returns real data, parse the percentages
     if (prediction && prediction.percent) {
       // API returns strings like "45%", so we strip the % and turn it into a number
-      const homeWin = parseInt(prediction.percent.home.replace('%', '')) || 0;
-      const awayWin = parseInt(prediction.percent.away.replace('%', '')) || 0;
-      
-      // API-Sports doesn't strictly provide Over 1.5, so we derive a safe algorithmic estimate 
+      const homeWin = parseInt(prediction.percent.home.replace("%", "")) || 0;
+      const awayWin = parseInt(prediction.percent.away.replace("%", "")) || 0;
+
+      // API-Sports doesn't strictly provide Over 1.5, so we derive a safe algorithmic estimate
       // based on the overall win/draw dynamics and BTTS (Both Teams To Score) probability
       const bttsString = prediction.percent.btts || "50%";
-      const btts = parseInt(bttsString.replace('%', ''));
+      const btts = parseInt(bttsString.replace("%", ""));
+      const ov15 = Math.min(99, btts + 25);
+      const ov25 = Math.min(99, btts);
+      const ov35 = Math.max(10, btts - 30);
 
       return {
         ...fixture,
+        league_name: fixture.league_name || "Unknown League",
         home_win_probability: homeWin,
         away_win_probability: awayWin,
         btts_probability: btts,
-        // Algorithmic derivations for goal markets based on primary stats
-        over1_5_probability: Math.min(99, btts + 25), 
-        over2_5_probability: Math.min(99, btts),
-        over3_5_probability: Math.max(10, btts - 30),
+        over1_5_probability: ov15,
+        under1_5_probability: 100 - ov15,
+        over2_5_probability: ov25,
+        under2_5_probability: 100 - ov25,
+        over3_5_probability: ov35,
+        under3_5_probability: 100 - ov35,
       };
     }
   } catch (error) {
-    console.error(`Failed to fetch real stats for fixture ${fixture.fixture_id}:`, error);
+    console.error(
+      `Failed to fetch real stats for fixture ${fixture.fixture_id}:`,
+      error,
+    );
   }
 
   // 3. FALLBACK: If the API fails or we hit our limit, fall back to our seeded math logic
@@ -106,10 +131,12 @@ export interface AnalyzedBasketballFixture {
   home_spread: number;
 }
 
-export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixture {
+export function analyzeBasketballFixture(
+  fixture: any,
+): AnalyzedBasketballFixture {
   // Seeded random logic so percentages stay consistent on refresh
   const seed = fixture.fixture_id || Math.random() * 10000;
-  
+
   const pseudoRandom = (hash: number) => {
     let x = Math.sin(hash++) * 10000;
     return x - Math.floor(x);
@@ -118,14 +145,14 @@ export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixtur
   // Generate a mock win probability for the home team (between 30 and 85)
   const homeWinProb = Math.floor(30 + pseudoRandom(Number(seed) + 1) * 55);
   // Basketball has no ties, so away probability is the exact inverse
-  const awayWinProb = 100 - homeWinProb; 
-  
+  const awayWinProb = 100 - homeWinProb;
+
   // Projected Total Points (Typically between 190 and 235 for NBA/high-level games)
-  const projectedTotal = Math.floor(190 + pseudoRandom(Number(seed) + 2) * 45); 
-  
-  // Calculate the Point Spread. 
+  const projectedTotal = Math.floor(190 + pseudoRandom(Number(seed) + 2) * 45);
+
+  // Calculate the Point Spread.
   // If a team has a huge win probability advantage, the negative spread increases.
-  const winDiff = homeWinProb - awayWinProb; 
+  const winDiff = homeWinProb - awayWinProb;
   const rawSpread = -(winDiff / 4); // E.g., 60% win diff = -15 point spread
   // Round to the nearest 0.5 (e.g., -7.5)
   const homeSpread = Math.round(rawSpread * 2) / 2;
@@ -142,16 +169,22 @@ export function analyzeBasketballFixture(fixture: any): AnalyzedBasketballFixtur
 
 // Add this to the BOTTOM of lib/logic-engine.ts
 
-export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey: string): Promise<AnalyzedBasketballFixture> {
+export async function analyzeBasketballFixtureWithRealData(
+  fixture: any,
+  apiKey: string,
+): Promise<AnalyzedBasketballFixture> {
   try {
     // 1. Ask API-Basketball for real Vegas Odds (Bookmaker ID 1 is typically Bet365/Bwin)
-    const response = await fetch(`https://v1.basketball.api-sports.io/odds?game=${fixture.fixture_id}`, {
-      method: 'GET',
-      headers: {
-        'x-apisports-key': apiKey,
+    const response = await fetch(
+      `https://v1.basketball.api-sports.io/odds?game=${fixture.fixture_id}`,
+      {
+        method: "GET",
+        headers: {
+          "x-apisports-key": apiKey,
+        },
+        next: { revalidate: 86400 }, // Cache for 24 hours to protect API limits
       },
-      next: { revalidate: 86400 } // Cache for 24 hours to protect API limits
-    });
+    );
 
     const data = await response.json();
     const bookmakers = data.response?.[0]?.bookmakers;
@@ -159,7 +192,7 @@ export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey:
     // 2. If we got real odds data back, parse it!
     if (bookmakers && bookmakers.length > 0) {
       const markets = bookmakers[0].bets;
-      
+
       let homeWinProb = 50;
       let awayWinProb = 50;
       let homeSpread = 0;
@@ -168,18 +201,26 @@ export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey:
       // Extract Moneyline (Home/Away)
       const moneyline = markets.find((m: any) => m.name === "Home/Away");
       if (moneyline) {
-        const homeOdds = parseFloat(moneyline.values.find((v: any) => v.value === "Home")?.odd || "1.9");
-        const awayOdds = parseFloat(moneyline.values.find((v: any) => v.value === "Away")?.odd || "1.9");
+        const homeOdds = parseFloat(
+          moneyline.values.find((v: any) => v.value === "Home")?.odd || "1.9",
+        );
+        const awayOdds = parseFloat(
+          moneyline.values.find((v: any) => v.value === "Away")?.odd || "1.9",
+        );
         // Convert decimal odds to implied probability
         homeWinProb = Math.round((1 / homeOdds) * 100);
         awayWinProb = Math.round((1 / awayOdds) * 100);
       }
 
       // Extract Point Spread (Asian Handicap)
-      const spreadMarket = markets.find((m: any) => m.name === "Asian Handicap");
+      const spreadMarket = markets.find(
+        (m: any) => m.name === "Asian Handicap",
+      );
       if (spreadMarket && spreadMarket.values.length > 0) {
         // Vegas formats it like "Home -5.5", we just need the number
-        const rawSpread = spreadMarket.values[0].value.replace("Home ", "").replace("Away ", "");
+        const rawSpread = spreadMarket.values[0].value
+          .replace("Home ", "")
+          .replace("Away ", "");
         homeSpread = parseFloat(rawSpread) || 0;
       }
 
@@ -187,7 +228,9 @@ export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey:
       const totalMarket = markets.find((m: any) => m.name === "Over/Under");
       if (totalMarket && totalMarket.values.length > 0) {
         // Vegas formats it like "Over 215.5"
-        const rawTotal = totalMarket.values[0].value.replace("Over ", "").replace("Under ", "");
+        const rawTotal = totalMarket.values[0].value
+          .replace("Over ", "")
+          .replace("Under ", "");
         projectedTotal = Math.round(parseFloat(rawTotal)) || 210;
       }
 
@@ -200,7 +243,10 @@ export async function analyzeBasketballFixtureWithRealData(fixture: any, apiKey:
       };
     }
   } catch (error) {
-    console.error(`Failed to fetch real odds for basketball game ${fixture.fixture_id}:`, error);
+    console.error(
+      `Failed to fetch real odds for basketball game ${fixture.fixture_id}:`,
+      error,
+    );
   }
 
   // 3. FALLBACK: If the API fails or the game doesn't have odds yet, use our mock math

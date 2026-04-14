@@ -11,18 +11,51 @@ interface DashboardClientProps {
   fixtures: AnalyzedFixture[];
 }
 
+const TIME_FILTER_OPTIONS = ["All", "Next 6 Hours", "Next 12 Hours", "Next 24 Hours"] as const;
+
 export default function DashboardClient({ fixtures }: DashboardClientProps) {
   const [activeTab, setActiveTab] = useState("over-1.5");
   const [selections, setSelections] = useState<Match[]>([]);
+  const [selectedLeague, setSelectedLeague] = useState("All");
+  const [timeFilter, setTimeFilter] = useState<string>("All");
+
+  // Extract unique leagues from fixtures, sorted alphabetically
+  const uniqueLeagues = useMemo(() => {
+    const leagues = Array.from(
+      new Set(fixtures.map((f) => f.league_name || "Unknown League"))
+    ).sort((a, b) => a.localeCompare(b));
+    return leagues;
+  }, [fixtures]);
 
   const matches = useMemo(() => {
+    const now = new Date();
+
     return fixtures
+      // 1. Filter by selected league
+      .filter((fixture) => {
+        if (selectedLeague === "All") return true;
+        return (fixture.league_name || "Unknown League") === selectedLeague;
+      })
+      // 2. Filter by time window
+      .filter((fixture) => {
+        if (timeFilter === "All") return true;
+        const matchDate = new Date(fixture.match_date);
+        const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (timeFilter === "Next 6 Hours") return diffHours >= 0 && diffHours <= 6;
+        if (timeFilter === "Next 12 Hours") return diffHours >= 0 && diffHours <= 12;
+        if (timeFilter === "Next 24 Hours") return diffHours >= 0 && diffHours <= 24;
+        return true;
+      })
+      // 3. Filter by active market confidence threshold
       .filter((fixture) => {
         if (activeTab === "over-1.5") return fixture.over1_5_probability >= 80;
         if (activeTab === "straight-win") return fixture.home_win_probability >= 75 || fixture.away_win_probability >= 75;
         if (activeTab === "over-2.5") return fixture.over2_5_probability >= 80;
         if (activeTab === "over-3.5") return fixture.over3_5_probability >= 75; 
         if (activeTab === "btts") return fixture.btts_probability >= 80;
+        if (activeTab === "under-1.5") return fixture.under1_5_probability >= 70;
+        if (activeTab === "under-2.5") return fixture.under2_5_probability >= 70;
+        if (activeTab === "under-3.5") return fixture.under3_5_probability >= 70;
         return false;
       })
       .map((fixture): Match => {
@@ -56,6 +89,18 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
           confidence = fixture.btts_probability;
           prediction = "Both Teams to Score";
           odds = 1.70 + (100 - confidence) / 50;
+        } else if (activeTab === "under-1.5") {
+          confidence = fixture.under1_5_probability;
+          prediction = "Under 1.5 Goals";
+          odds = 2.20 + (100 - confidence) / 40;
+        } else if (activeTab === "under-2.5") {
+          confidence = fixture.under2_5_probability;
+          prediction = "Under 2.5 Goals";
+          odds = 1.80 + (100 - confidence) / 50;
+        } else if (activeTab === "under-3.5") {
+          confidence = fixture.under3_5_probability;
+          prediction = "Under 3.5 Goals";
+          odds = 1.40 + (100 - confidence) / 60;
         }
 
         const matchTime = fixture.match_date 
@@ -76,7 +121,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
         };
       })
       .sort((a, b) => b.confidence - a.confidence);
-  }, [fixtures, activeTab]);
+  }, [fixtures, activeTab, selectedLeague, timeFilter]);
 
   const toggleSelection = useCallback((match: Match) => {
     setSelections((prev) => {
@@ -104,6 +149,38 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
+
+        {/* Filter Dropdowns */}
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          {/* League Filter */}
+          <select
+            id="league-filter"
+            value={selectedLeague}
+            onChange={(e) => setSelectedLeague(e.target.value)}
+            className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 hover:border-accent-green focus:border-accent-green focus:ring-2 focus:ring-accent-green/20 appearance-none cursor-pointer min-w-[180px]"
+          >
+            <option value="All">All Leagues</option>
+            {uniqueLeagues.map((league) => (
+              <option key={league} value={league}>
+                {league}
+              </option>
+            ))}
+          </select>
+
+          {/* Time Filter */}
+          <select
+            id="time-filter"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+            className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 hover:border-accent-green focus:border-accent-green focus:ring-2 focus:ring-accent-green/20 appearance-none cursor-pointer min-w-[180px]"
+          >
+            {TIME_FILTER_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option === "All" ? "All Times" : option}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Active Market Header */}
         <div className="mb-5 flex items-center justify-between">

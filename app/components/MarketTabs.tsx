@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Flame,
   Swords,
+  ShieldMinus,
 } from "lucide-react";
 
 export interface MarketTab {
@@ -28,6 +29,9 @@ export const FOOTBALL_MARKETS: MarketTab[] = [
   },
   { id: "over-3.5", label: "Over 3.5", icon: <Flame className="h-4 w-4" /> },
   { id: "btts", label: "BTTS", icon: <Swords className="h-4 w-4" /> },
+  { id: "under-1.5", label: "Under 1.5", icon: <ShieldMinus className="h-4 w-4" /> },
+  { id: "under-2.5", label: "Under 2.5", icon: <ShieldMinus className="h-4 w-4" /> },
+  { id: "under-3.5", label: "Under 3.5", icon: <ShieldMinus className="h-4 w-4" /> },
 ];
 
 interface MarketTabsProps {
