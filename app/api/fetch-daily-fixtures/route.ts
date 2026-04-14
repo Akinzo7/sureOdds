@@ -68,6 +68,7 @@ export async function GET() {
       home_team_name: item.teams.home.name,
       away_team_name: item.teams.away.name,
       status: item.fixture.status.short,
+      league_name: item.league.name,
     }));
 
     // Perform an upsert into Supabase based on `fixture_id`

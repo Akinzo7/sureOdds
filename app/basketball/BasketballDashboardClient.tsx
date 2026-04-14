@@ -78,9 +78,10 @@ export default function BasketballDashboardClient({ fixtures }: DashboardClientP
           odds = 1.90;
         }
 
-        const matchTime = fixture.match_date 
-          ? new Date(fixture.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : "TBD";
+       const matchDateObj = new Date(fixture.match_date);
+const matchTime = fixture.match_date 
+  ? `${matchDateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${matchDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  : "TBD";
 
         return {
           id: String(fixture.fixture_id),

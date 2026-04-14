@@ -1,4 +1,5 @@
 export interface AnalyzedFixture {
+  league_name: string;
   fixture_id: number;
   sport_type: string;
   match_date: string;
@@ -89,6 +90,7 @@ export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): 
 // Add this to the BOTTOM of lib/logic-engine.ts
 
 export interface AnalyzedBasketballFixture {
+  league_name: string;
   fixture_id: number;
   sport_type: string;
   match_date: string;

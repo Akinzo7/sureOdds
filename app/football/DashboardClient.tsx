@@ -69,7 +69,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
           homeTeamLogo: "🛡️", // Generics as placeholder since real logos aren't fetched yet
           awayTeamLogo: "⚔️", // Generics as placeholder
           matchTime: matchTime,
-          league: "Football", 
+          league:fixture.league_name || "Football",
           confidence,
           odds: Number(odds.toFixed(2)),
           prediction,

@@ -19,10 +19,15 @@ export default async function FootballDashboardServer() {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // 1. Fetch the raw fixtures from your database
+  // Get midnight today to filter out old games
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1. Fetch the raw fixtures from your database (Today and Future ONLY)
   const { data: fixtures, error } = await supabase
     .from("fixtures")
     .select("*")
+    .gte("match_date", today.toISOString()) // <-- NEW LINE HERE
     .order("match_date", { ascending: true });
 
   if (error || !fixtures) {
@@ -30,7 +35,6 @@ export default async function FootballDashboardServer() {
   }
 
   // 2. THE HYBRID STRATEGY
-  // We only grab the first 3 matches to send to the real API to protect your free tier limits.
   const topMatchesToAnalyzeDeeply = fixtures.slice(0, 3);
   const remainingMatches = fixtures.slice(3);
 

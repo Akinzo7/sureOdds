@@ -49,16 +49,17 @@ export async function GET() {
     }
 
     // Map the external data to match the Supabase `basketball_fixtures` table schema
-    const mappedGames = games.map((item: any) => ({
-      fixture_id: item.id,
-      sport_type: 'basketball',
-      match_date: item.date,
-      home_team_id: item.teams.home.id,
-      away_team_id: item.teams.away.id,
-      home_team_name: item.teams.home.name,
-      away_team_name: item.teams.away.name,
-      status: item.status.short,
-    }));
+ const mappedGames = games.map((item: any) => ({
+  fixture_id: item.id,
+  sport_type: 'basketball',
+  match_date: item.date,
+  home_team_id: item.teams.home.id,
+  away_team_id: item.teams.away.id,
+  home_team_name: item.teams.home.name,
+  away_team_name: item.teams.away.name,
+  status: item.status.short,
+  league_name: item.league.name,
+}));
 
     // Perform an upsert into Supabase based on `fixture_id`
     const { error: upsertError } = await supabase
