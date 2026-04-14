@@ -65,7 +65,7 @@ export default function BasketballMatchCard({
           </span>
           <div className="flex items-center gap-1.5 text-xs text-muted">
             <Clock className="h-3 w-3" />
-            <span>{match.matchTime}</span>
+            <span suppressHydrationWarning>{match.matchTime}</span>
           </div>
         </div>
 
