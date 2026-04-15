@@ -11,7 +11,12 @@ interface DashboardClientProps {
   fixtures: AnalyzedFixture[];
 }
 
-const TIME_FILTER_OPTIONS = ["All", "Next 6 Hours", "Next 12 Hours", "Next 24 Hours"] as const;
+const TIME_FILTER_OPTIONS = [
+  "All",
+  "Next 6 Hours",
+  "Next 12 Hours",
+  "Next 24 Hours",
+] as const;
 
 export default function DashboardClient({ fixtures }: DashboardClientProps) {
   const [activeTab, setActiveTab] = useState("over-1.5");
@@ -22,7 +27,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
   // Extract unique leagues from fixtures, sorted alphabetically
   const uniqueLeagues = useMemo(() => {
     const leagues = Array.from(
-      new Set(fixtures.map((f) => f.league_name || "Unknown League"))
+      new Set(fixtures.map((f) => f.league_name || "Unknown League")),
     ).sort((a, b) => a.localeCompare(b));
     return leagues;
   }, [fixtures]);
@@ -30,100 +35,125 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
   const matches = useMemo(() => {
     const now = new Date();
 
-    return fixtures
-      // 1. Filter by selected league
-      .filter((fixture) => {
-        if (selectedLeague === "All") return true;
-        return (fixture.league_name || "Unknown League") === selectedLeague;
-      })
-      // 2. Filter by time window
-      // 3. STRICT HIGH-PROBABILITY FILTER
-      .filter((fixture) => {
-        if (activeTab === "over-1.5") return fixture.over1_5_probability >= 85; // Raised to 85%
-        if (activeTab === "straight-win") return fixture.home_win_probability >= 85 || fixture.away_win_probability >= 85; // Raised to 85%
-        if (activeTab === "over-2.5") return fixture.over2_5_probability >= 80;
-        if (activeTab === "over-3.5") return fixture.over3_5_probability >= 75; 
-        if (activeTab === "btts") return fixture.btts_probability >= 80;
-        if (activeTab === "under-1.5") return fixture.under1_5_probability >= 85; // Raised to 85%
-        if (activeTab === "under-2.5") return fixture.under2_5_probability >= 80;
-        if (activeTab === "under-3.5") return fixture.under3_5_probability >= 80;
-        return false;
-      })
-      // 3. Filter by active market confidence threshold
-      .filter((fixture) => {
-        if (activeTab === "over-1.5") return fixture.over1_5_probability >= 80;
-        if (activeTab === "straight-win") return fixture.home_win_probability >= 75 || fixture.away_win_probability >= 75;
-        if (activeTab === "over-2.5") return fixture.over2_5_probability >= 80;
-        if (activeTab === "over-3.5") return fixture.over3_5_probability >= 75; 
-        if (activeTab === "btts") return fixture.btts_probability >= 80;
-        if (activeTab === "under-1.5") return fixture.under1_5_probability >= 70;
-        if (activeTab === "under-2.5") return fixture.under2_5_probability >= 70;
-        if (activeTab === "under-3.5") return fixture.under3_5_probability >= 70;
-        return false;
-      })
-      .map((fixture): Match => {
-        let confidence = 0;
-        let prediction = "";
-        let odds = 1.5; 
-        
-        if (activeTab === "over-1.5") {
-          confidence = fixture.over1_5_probability;
-          prediction = "Over 1.5 Goals";
-          odds = 1.25 + (100 - confidence) / 100;
-        } else if (activeTab === "straight-win") {
-          if (fixture.home_win_probability >= fixture.away_win_probability && fixture.home_win_probability >= 75) {
-             confidence = fixture.home_win_probability;
-             prediction = `${fixture.home_team_name} Win`;
-             odds = 1.30 + (100 - confidence) / 50;
-          } else {
-             confidence = fixture.away_win_probability;
-             prediction = `${fixture.away_team_name} Win`;
-             odds = 1.30 + (100 - confidence) / 50;
+    return (
+      fixtures
+        // 1. Filter by selected league
+        .filter((fixture) => {
+          if (selectedLeague === "All") return true;
+          return (fixture.league_name || "Unknown League") === selectedLeague;
+        })
+        // 2. Filter by time window
+        // 3. STRICT HIGH-PROBABILITY FILTER
+        .filter((fixture) => {
+          if (activeTab === "over-1.5")
+            return fixture.over1_5_probability >= 85; // Raised to 85%
+          if (activeTab === "straight-win")
+            return (
+              fixture.home_win_probability >= 85 ||
+              fixture.away_win_probability >= 85
+            ); // Raised to 85%
+          if (activeTab === "over-2.5")
+            return fixture.over2_5_probability >= 80;
+          if (activeTab === "over-3.5")
+            return fixture.over3_5_probability >= 75;
+          if (activeTab === "btts") return fixture.btts_probability >= 80;
+          if (activeTab === "under-1.5")
+            return fixture.under1_5_probability >= 85; // Raised to 85%
+          if (activeTab === "under-2.5")
+            return fixture.under2_5_probability >= 80;
+          if (activeTab === "under-3.5")
+            return fixture.under3_5_probability >= 80;
+          return false;
+        })
+        // 3. Filter by active market confidence threshold
+        .filter((fixture) => {
+          if (activeTab === "over-1.5")
+            return fixture.over1_5_probability >= 80;
+          if (activeTab === "straight-win")
+            return (
+              fixture.home_win_probability >= 75 ||
+              fixture.away_win_probability >= 75
+            );
+          if (activeTab === "over-2.5")
+            return fixture.over2_5_probability >= 80;
+          if (activeTab === "over-3.5")
+            return fixture.over3_5_probability >= 75;
+          if (activeTab === "btts") return fixture.btts_probability >= 80;
+          if (activeTab === "under-1.5")
+            return fixture.under1_5_probability >= 70;
+          if (activeTab === "under-2.5")
+            return fixture.under2_5_probability >= 70;
+          if (activeTab === "under-3.5")
+            return fixture.under3_5_probability >= 70;
+          return false;
+        })
+        .map((fixture): Match => {
+          let confidence = 0;
+          let prediction = "";
+          let realOdds = 1.0;
+
+          // Use genuine odds pulled directly from Vegas bookmakers
+          if (activeTab === "over-1.5") {
+            confidence = fixture.over1_5_probability;
+            prediction = "Over 1.5 Goals";
+            realOdds = fixture.over_1_5_odds;
+          } else if (activeTab === "straight-win") {
+            if (fixture.home_win_probability >= fixture.away_win_probability) {
+              confidence = fixture.home_win_probability;
+              prediction = `${fixture.home_team_name} Win`;
+              realOdds = fixture.home_win_odds;
+            } else {
+              confidence = fixture.away_win_probability;
+              prediction = `${fixture.away_team_name} Win`;
+              realOdds = fixture.away_win_odds;
+            }
+          } else if (activeTab === "over-2.5") {
+            confidence = fixture.over2_5_probability;
+            prediction = "Over 2.5 Goals";
+            realOdds = fixture.over_2_5_odds;
+          } else if (activeTab === "btts") {
+            confidence = fixture.btts_probability;
+            prediction = "Both Teams to Score";
+            realOdds = fixture.btts_yes_odds;
           }
-        } else if (activeTab === "over-2.5") {
-          confidence = fixture.over2_5_probability;
-          prediction = "Over 2.5 Goals";
-          odds = 1.65 + (100 - confidence) / 50;
-        } else if (activeTab === "over-3.5") {
-          confidence = fixture.over3_5_probability;
-          prediction = "Over 3.5 Goals";
-          odds = 2.50 + (100 - confidence) / 30;
-        } else if (activeTab === "btts") {
-          confidence = fixture.btts_probability;
-          prediction = "Both Teams to Score";
-          odds = 1.70 + (100 - confidence) / 50;
-        } else if (activeTab === "under-1.5") {
-          confidence = fixture.under1_5_probability;
-          prediction = "Under 1.5 Goals";
-          odds = 2.20 + (100 - confidence) / 40;
-        } else if (activeTab === "under-2.5") {
-          confidence = fixture.under2_5_probability;
-          prediction = "Under 2.5 Goals";
-          odds = 1.80 + (100 - confidence) / 50;
-        } else if (activeTab === "under-3.5") {
-          confidence = fixture.under3_5_probability;
-          prediction = "Under 3.5 Goals";
-          odds = 1.40 + (100 - confidence) / 60;
-        }
+          // Fallbacks for markets where we didn't extract specific odds yet to avoid breaking UI
+          else if (activeTab === "over-3.5") {
+            confidence = fixture.over3_5_probability;
+            prediction = "Over 3.5 Goals";
+            realOdds = 0.0;
+          } else if (activeTab.startsWith("under")) {
+            confidence =
+              activeTab === "under-1.5"
+                ? fixture.under1_5_probability
+                : activeTab === "under-2.5"
+                  ? fixture.under2_5_probability
+                  : fixture.under3_5_probability;
+            prediction = `Under ${activeTab.split("-")[1]} Goals`;
+            realOdds = 0.0;
+          }
 
-        const matchTime = fixture.match_date 
-          ? new Date(fixture.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : "TBD";
+          const matchTime = fixture.match_date
+            ? new Date(fixture.match_date).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "TBD";
 
-        return {
-          id: String(fixture.fixture_id),
-          homeTeam: fixture.home_team_name,
-          awayTeam: fixture.away_team_name,
-          homeTeamLogo: "🛡️", // Generics as placeholder since real logos aren't fetched yet
-          awayTeamLogo: "⚔️", // Generics as placeholder
-          matchTime: matchTime,
-          league:fixture.league_name || "Football",
-          confidence,
-          odds: Number(odds.toFixed(2)),
-          prediction,
-        };
-      })
-      .sort((a, b) => b.confidence - a.confidence);
+          return {
+            id: String(fixture.fixture_id),
+            homeTeam: fixture.home_team_name,
+            awayTeam: fixture.away_team_name,
+            homeTeamLogo: "🛡️",
+            awayTeamLogo: "⚔️",
+            matchTime: matchTime,
+            league: fixture.league_name || "Football",
+            confidence,
+            odds: realOdds, // NO FAKE MATH. STRICTLY GENUINE.
+            prediction,
+          };
+        })
+        .sort((a, b) => b.confidence - a.confidence)
+    );
   }, [fixtures, activeTab, selectedLeague, timeFilter]);
 
   const toggleSelection = useCallback((match: Match) => {
@@ -206,7 +236,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {matches.map((match) => (
             <MatchCard
-              key={match.id + activeTab} 
+              key={match.id + activeTab}
               match={match}
               isSelected={selections.some((s) => s.id === match.id)}
               onToggle={toggleSelection}

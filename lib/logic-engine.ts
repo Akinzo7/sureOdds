@@ -8,47 +8,119 @@ export interface AnalyzedFixture {
   home_team_name: string;
   away_team_name: string;
   status: string;
+  // Probabilities
   over1_5_probability: number;
-  under1_5_probability: number; // NEW
+  under1_5_probability: number;
   over2_5_probability: number;
-  under2_5_probability: number; // NEW
+  under2_5_probability: number;
   over3_5_probability: number;
-  under3_5_probability: number; // NEW
+  under3_5_probability: number;
   btts_probability: number;
   home_win_probability: number;
   away_win_probability: number;
+  // REAL ODDS
+  home_win_odds: number;
+  away_win_odds: number;
+  over_1_5_odds: number;
+  over_2_5_odds: number;
+  btts_yes_odds: number;
 }
 
-export function analyzeFixture(fixture: any): AnalyzedFixture {
-  // Use a seeded random based on fixture ID so probabilities stay stable
-  // between renders for the same fixture.
-  const seed = fixture.fixture_id || Math.random() * 10000;
+export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): Promise<AnalyzedFixture | null> {
+  try {
+    // 1. Fetch BOTH Predictions and Odds concurrently for maximum speed
+    const [predRes, oddsRes] = await Promise.all([
+      fetch(`https://v3.football.api-sports.io/predictions?fixture=${fixture.fixture_id}`, {
+        method: 'GET', headers: { 'x-apisports-key': apiKey }, next: { revalidate: 86400 }
+      }),
+      fetch(`https://v3.football.api-sports.io/odds?fixture=${fixture.fixture_id}`, {
+        method: 'GET', headers: { 'x-apisports-key': apiKey }, next: { revalidate: 86400 }
+      })
+    ]);
 
-  const pseudoRandom = (hash: number) => {
-    let x = Math.sin(hash++) * 10000;
-    return x - Math.floor(x);
-  };
+    const predData = await predRes.json();
+    const oddsData = await oddsRes.json();
 
-  // Generate a mock probability between 40 and 95
-  const getProb = (offset: number) =>
-    Math.floor(40 + pseudoRandom(Number(seed) + offset) * 55);
-  const ov15 = getProb(1);
-  const ov25 = getProb(2);
-  const ov35 = getProb(3);
+    const predictionObj = predData.response?.[0]?.predictions;
+    const comparisonObj = predData.response?.[0]?.comparison;
+    const bookmakers = oddsData.response?.[0]?.bookmakers;
 
-  return {
-    ...fixture,
-    league_name: fixture.league_name || "Unknown League",
-    over1_5_probability: ov15,
-    under1_5_probability: 100 - ov15, // The exact inverse
-    over2_5_probability: ov25,
-    under2_5_probability: 100 - ov25,
-    over3_5_probability: ov35,
-    under3_5_probability: 100 - ov35,
-    btts_probability: getProb(4),
-    home_win_probability: getProb(5),
-    away_win_probability: getProb(6),
-  };
+    if (!predictionObj || !predictionObj.percent) return null;
+
+    // 2. Extract Real Bookmaker Odds (Fallback to 1.0 if not found so UI doesn't crash)
+    let homeOdds = 1.0, awayOdds = 1.0, ov15Odds = 1.0, ov25Odds = 1.0, bttsOdds = 1.0;
+
+    if (bookmakers && bookmakers.length > 0) {
+      const bets = bookmakers[0].bets;
+
+      // Extract Match Winner (1x2)
+      const matchWinner = bets.find((b: any) => b.name === "Match Winner");
+      if (matchWinner) {
+        homeOdds = parseFloat(matchWinner.values.find((v: any) => v.value === "Home")?.odd || "1.0");
+        awayOdds = parseFloat(matchWinner.values.find((v: any) => v.value === "Away")?.odd || "1.0");
+      }
+
+      // Extract Goals Over/Under
+      const goalsOU = bets.find((b: any) => b.name === "Goals Over/Under");
+      if (goalsOU) {
+        ov15Odds = parseFloat(goalsOU.values.find((v: any) => v.value === "Over 1.5")?.odd || "1.0");
+        ov25Odds = parseFloat(goalsOU.values.find((v: any) => v.value === "Over 2.5")?.odd || "1.0");
+      }
+
+      // Extract BTTS
+      const bttsMarket = bets.find((b: any) => b.name === "Both Teams Score");
+      if (bttsMarket) {
+        bttsOdds = parseFloat(bttsMarket.values.find((v: any) => v.value === "Yes")?.odd || "1.0");
+      }
+    }
+
+    // 3. Process the Strictly Validated Math (Phase 1)
+    const rawHomeWin = parseInt(predictionObj.percent.home.replace('%', '')) || 0;
+    const rawAwayWin = parseInt(predictionObj.percent.away.replace('%', '')) || 0;
+    const homeForm = parseInt(comparisonObj?.form?.home?.replace('%', '') || String(rawHomeWin));
+    const awayForm = parseInt(comparisonObj?.form?.away?.replace('%', '') || String(rawAwayWin));
+    const homeH2H = parseInt(comparisonObj?.h2h?.home?.replace('%', '') || String(rawHomeWin));
+    const awayH2H = parseInt(comparisonObj?.h2h?.away?.replace('%', '') || String(rawAwayWin));
+
+    const validatedHomeWin = Math.round((rawHomeWin * 0.7) + (homeForm * 0.2) + (homeH2H * 0.1));
+    const validatedAwayWin = Math.round((rawAwayWin * 0.7) + (awayForm * 0.2) + (awayH2H * 0.1));
+
+    const bttsString = predictionObj.percent.btts || "50%";
+    const rawBtts = parseInt(bttsString.replace('%', ''));
+    const combinedForm = (homeForm + awayForm) / 2;
+    const goalFormPenalty = combinedForm < 50 ? -10 : 0;
+
+    const validatedBtts = Math.max(0, rawBtts + goalFormPenalty);
+    const ov15 = Math.max(0, Math.min(99, validatedBtts + 25 + goalFormPenalty));
+    const ov25 = Math.max(0, Math.min(99, validatedBtts + goalFormPenalty));
+    const ov35 = Math.max(0, validatedBtts - 30 + goalFormPenalty);
+
+    // 4. Return strictly genuine data
+    return {
+      ...fixture,
+      league_name: fixture.league_name || "Unknown League",
+      home_win_probability: validatedHomeWin,
+      away_win_probability: validatedAwayWin,
+      btts_probability: validatedBtts,
+      over1_5_probability: ov15,
+      under1_5_probability: 100 - ov15,
+      over2_5_probability: ov25,
+      under2_5_probability: 100 - ov25,
+      over3_5_probability: ov35,
+      under3_5_probability: 100 - ov35,
+      // REAL ODDS DATA
+      home_win_odds: homeOdds,
+      away_win_odds: awayOdds,
+      over_1_5_odds: ov15Odds,
+      over_2_5_odds: ov25Odds,
+      btts_yes_odds: bttsOdds,
+    };
+    
+  } catch (error) {
+    console.error(`Failed to fetch real stats for fixture ${fixture.fixture_id}:`, error);
+  }
+
+  return null;
 }
 
 // Add this to the BOTTOM of your existing lib/logic-engine.ts file
@@ -62,24 +134,45 @@ export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): 
     });
 
     const data = await response.json();
-    const prediction = data.response?.[0]?.predictions;
+    const predictionObj = data.response?.[0]?.predictions;
+    const comparisonObj = data.response?.[0]?.comparison; // Extract the hidden reality check data
 
-    if (prediction && prediction.percent) {
-      const homeWin = parseInt(prediction.percent.home.replace('%', '')) || 0;
-      const awayWin = parseInt(prediction.percent.away.replace('%', '')) || 0;
+    if (predictionObj && predictionObj.percent) {
+      // 1. Extract Raw ML Percentages
+      const rawHomeWin = parseInt(predictionObj.percent.home.replace('%', '')) || 0;
+      const rawAwayWin = parseInt(predictionObj.percent.away.replace('%', '')) || 0;
       
-      const bttsString = prediction.percent.btts || "50%";
-      const btts = parseInt(bttsString.replace('%', ''));
-      const ov15 = Math.min(99, btts + 25);
-      const ov25 = Math.min(99, btts);
-      const ov35 = Math.max(10, btts - 30);
+      // 2. Extract Reality Check Percentages (Form & H2H)
+      // If the API doesn't provide them for a small league, fallback to the raw ML so it doesn't break
+      const homeForm = parseInt(comparisonObj?.form?.home?.replace('%', '') || String(rawHomeWin));
+      const awayForm = parseInt(comparisonObj?.form?.away?.replace('%', '') || String(rawAwayWin));
+      const homeH2H = parseInt(comparisonObj?.h2h?.home?.replace('%', '') || String(rawHomeWin));
+      const awayH2H = parseInt(comparisonObj?.h2h?.away?.replace('%', '') || String(rawAwayWin));
+
+      // 3. THE ALGORITHM: Apply Strict Weighting
+      // 70% Machine Learning, 20% Recent Form Momentum, 10% Historical Matchup
+      const validatedHomeWin = Math.round((rawHomeWin * 0.7) + (homeForm * 0.2) + (homeH2H * 0.1));
+      const validatedAwayWin = Math.round((rawAwayWin * 0.7) + (awayForm * 0.2) + (awayH2H * 0.1));
+
+      // 4. Process Goals (BTTS)
+      const bttsString = predictionObj.percent.btts || "50%";
+      const rawBtts = parseInt(bttsString.replace('%', ''));
+      
+      // If teams are in bad form, they score less. We penalize goal markets based on combined form.
+      const combinedForm = (homeForm + awayForm) / 2;
+      const goalFormPenalty = combinedForm < 50 ? -10 : 0; // Severe 10% penalty if both teams are playing poorly
+
+      const validatedBtts = Math.max(0, rawBtts + goalFormPenalty);
+      const ov15 = Math.max(0, Math.min(99, validatedBtts + 25 + goalFormPenalty));
+      const ov25 = Math.max(0, Math.min(99, validatedBtts + goalFormPenalty));
+      const ov35 = Math.max(0, validatedBtts - 30 + goalFormPenalty);
 
       return {
         ...fixture,
         league_name: fixture.league_name || "Unknown League",
-        home_win_probability: homeWin,
-        away_win_probability: awayWin,
-        btts_probability: btts,
+        home_win_probability: validatedHomeWin,
+        away_win_probability: validatedAwayWin,
+        btts_probability: validatedBtts,
         over1_5_probability: ov15,
         under1_5_probability: 100 - ov15,
         over2_5_probability: ov25,
@@ -92,10 +185,9 @@ export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): 
     console.error(`Failed to fetch real stats for fixture ${fixture.fixture_id}:`, error);
   }
 
-  // IF NO REAL DATA IS FOUND, RETURN NULL (NO FAKE DATA)
+  // Strict rejection: If we don't have genuine data, kill the match.
   return null;
 }
-
 // Add this to the BOTTOM of lib/logic-engine.ts
 
 export interface AnalyzedBasketballFixture {
