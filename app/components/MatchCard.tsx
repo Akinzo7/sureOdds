@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, TrendingUp, Plus, Check } from "lucide-react";
+import { Clock, TrendingUp, Plus, Check, Zap } from "lucide-react"; // Added Zap
 
 export interface Match {
   id: string;
@@ -13,6 +13,9 @@ export interface Match {
   confidence: number;
   odds: number;
   prediction: string;
+  // NEW PROPS FOR +EV
+  isPositiveEV?: boolean;
+  evMargin?: number;
 }
 
 interface MatchCardProps {
@@ -101,7 +104,7 @@ export default function MatchCard({
           </div>
         </div>
 
-        {/* Prediction Label */}
+       {/* Prediction Label */}
         <div className="mb-3 rounded-lg bg-surface-hover px-3 py-2">
           <p className="text-xs text-muted">
             Prediction:{" "}
@@ -110,6 +113,21 @@ export default function MatchCard({
             </span>
           </p>
         </div>
+
+        {/* GENUINE +EV ALERT (QUANTITATIVE EDGE) */}
+        {match.isPositiveEV && match.evMargin && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-accent-green/40 bg-accent-green/10 px-3 py-2 shadow-[0_0_10px_rgba(var(--accent-green),0.1)]">
+            <div className="flex items-center gap-2 text-accent-green">
+              <Zap className="h-4 w-4 animate-pulse fill-current" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                Mathematical Edge
+              </span>
+            </div>
+            <span className="font-bold text-accent-green">
+              +{match.evMargin.toFixed(1)}%
+            </span>
+          </div>
+        )}
 
         {/* Confidence Score */}
         <div className="mb-4">
