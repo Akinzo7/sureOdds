@@ -53,37 +53,23 @@ export function analyzeFixture(fixture: any): AnalyzedFixture {
 
 // Add this to the BOTTOM of your existing lib/logic-engine.ts file
 
-export async function analyzeFixtureWithRealData(
-  fixture: any,
-  apiKey: string,
-): Promise<AnalyzedFixture> {
+export async function analyzeFixtureWithRealData(fixture: any, apiKey: string): Promise<AnalyzedFixture | null> {
   try {
-    // 1. Ask API-Sports for the official prediction data for this specific match
-    const response = await fetch(
-      `https://v3.football.api-sports.io/predictions?fixture=${fixture.fixture_id}`,
-      {
-        method: "GET",
-        headers: {
-          "x-apisports-key": apiKey,
-        },
-        // Cache the response for 24 hours so we don't waste API calls if you refresh the page
-        next: { revalidate: 86400 },
-      },
-    );
+    const response = await fetch(`https://v3.football.api-sports.io/predictions?fixture=${fixture.fixture_id}`, {
+      method: 'GET',
+      headers: { 'x-apisports-key': apiKey },
+      next: { revalidate: 86400 } 
+    });
 
     const data = await response.json();
     const prediction = data.response?.[0]?.predictions;
 
-    // 2. If the API returns real data, parse the percentages
     if (prediction && prediction.percent) {
-      // API returns strings like "45%", so we strip the % and turn it into a number
-      const homeWin = parseInt(prediction.percent.home.replace("%", "")) || 0;
-      const awayWin = parseInt(prediction.percent.away.replace("%", "")) || 0;
-
-      // API-Sports doesn't strictly provide Over 1.5, so we derive a safe algorithmic estimate
-      // based on the overall win/draw dynamics and BTTS (Both Teams To Score) probability
+      const homeWin = parseInt(prediction.percent.home.replace('%', '')) || 0;
+      const awayWin = parseInt(prediction.percent.away.replace('%', '')) || 0;
+      
       const bttsString = prediction.percent.btts || "50%";
-      const btts = parseInt(bttsString.replace("%", ""));
+      const btts = parseInt(bttsString.replace('%', ''));
       const ov15 = Math.min(99, btts + 25);
       const ov25 = Math.min(99, btts);
       const ov35 = Math.max(10, btts - 30);
@@ -103,14 +89,11 @@ export async function analyzeFixtureWithRealData(
       };
     }
   } catch (error) {
-    console.error(
-      `Failed to fetch real stats for fixture ${fixture.fixture_id}:`,
-      error,
-    );
+    console.error(`Failed to fetch real stats for fixture ${fixture.fixture_id}:`, error);
   }
 
-  // 3. FALLBACK: If the API fails or we hit our limit, fall back to our seeded math logic
-  return analyzeFixture(fixture);
+  // IF NO REAL DATA IS FOUND, RETURN NULL (NO FAKE DATA)
+  return null;
 }
 
 // Add this to the BOTTOM of lib/logic-engine.ts

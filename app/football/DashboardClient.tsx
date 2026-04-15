@@ -37,14 +37,17 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
         return (fixture.league_name || "Unknown League") === selectedLeague;
       })
       // 2. Filter by time window
+      // 3. STRICT HIGH-PROBABILITY FILTER
       .filter((fixture) => {
-        if (timeFilter === "All") return true;
-        const matchDate = new Date(fixture.match_date);
-        const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-        if (timeFilter === "Next 6 Hours") return diffHours >= 0 && diffHours <= 6;
-        if (timeFilter === "Next 12 Hours") return diffHours >= 0 && diffHours <= 12;
-        if (timeFilter === "Next 24 Hours") return diffHours >= 0 && diffHours <= 24;
-        return true;
+        if (activeTab === "over-1.5") return fixture.over1_5_probability >= 85; // Raised to 85%
+        if (activeTab === "straight-win") return fixture.home_win_probability >= 85 || fixture.away_win_probability >= 85; // Raised to 85%
+        if (activeTab === "over-2.5") return fixture.over2_5_probability >= 80;
+        if (activeTab === "over-3.5") return fixture.over3_5_probability >= 75; 
+        if (activeTab === "btts") return fixture.btts_probability >= 80;
+        if (activeTab === "under-1.5") return fixture.under1_5_probability >= 85; // Raised to 85%
+        if (activeTab === "under-2.5") return fixture.under2_5_probability >= 80;
+        if (activeTab === "under-3.5") return fixture.under3_5_probability >= 80;
+        return false;
       })
       // 3. Filter by active market confidence threshold
       .filter((fixture) => {
