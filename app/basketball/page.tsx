@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { analyzeBasketballFixture, analyzeBasketballFixtureWithRealData } from "@/lib/logic-engine";
+import { analyzeBasketballFixtureWithRealData, AnalyzedBasketballFixture } from "@/lib/logic-engine";
 import BasketballDashboardClient from "./BasketballDashboardClient";
 
 export const dynamic = "force-dynamic";
@@ -10,44 +10,31 @@ export default async function BasketballPage() {
   const apiSportsKey = process.env.API_SPORTS_KEY!;
 
   if (!supabaseUrl || !supabaseKey) {
-    return (
-      <div className="flex justify-center py-20 text-red-500">
-        Supabase Credentials Missing. Check .env.local
-      </div>
-    );
+    return <div className="py-20 text-center text-red-500">Credentials Missing</div>;
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-
-  // 1. Fetch raw basketball games from Supabase
-const today = new Date();
+  const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  // 1. Fetch raw basketball games from Supabase (Today and Future ONLY)
   const { data: fixtures, error } = await supabase
     .from("basketball_fixtures")
     .select("*")
-    .gte("match_date", today.toISOString()) // <-- ADD THIS LINE
+    .gte("match_date", today.toISOString())
     .order("match_date", { ascending: true });
 
-  if (error || !fixtures) {
-    return <div className="p-8 text-red-500">Error loading fixtures: {error?.message}</div>;
-  }
+  if (error || !fixtures) return <div>Error loading fixtures</div>;
 
-  // 2. THE HYBRID STRATEGY: Grab top 3 matches for the real API
-  const topMatches = fixtures.slice(0, 3);
-  const remainingMatches = fixtures.slice(3);
+  // Process a safe amount of matches to protect your 100/day free API limit
+  const matchesToAnalyze = fixtures.slice(0, 20);
 
-  // 3. Process top 3 matches through the REAL Vegas Odds Engine
-  const realAnalyzedFixtures = await Promise.all(
-    topMatches.map((match) => analyzeBasketballFixtureWithRealData(match, apiSportsKey))
+  // ONLY USE THE REAL VEGAS API
+  const rawResults = await Promise.all(
+    matchesToAnalyze.map((match) => analyzeBasketballFixtureWithRealData(match, apiSportsKey))
   );
 
-  // 4. Process the remaining matches through the fallback mock engine
-  const mockAnalyzedFixtures = remainingMatches.map(analyzeBasketballFixture);
+  // FILTER OUT ANY MATCHES THAT DIDN'T GET REAL DATA
+  const genuineFixtures = rawResults.filter((match): match is AnalyzedBasketballFixture => match !== null);
 
-  // 5. Combine and send to the client UI
-  const fullyAnalyzedFixtures = [...realAnalyzedFixtures, ...mockAnalyzedFixtures];
-
-  return <BasketballDashboardClient fixtures={fullyAnalyzedFixtures} />;
+  return <BasketballDashboardClient fixtures={genuineFixtures} />;
 }
