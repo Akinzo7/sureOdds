@@ -22,21 +22,30 @@ export default async function FootballDashboardServer() {
 
   if (error || !fixtures) return <div>Error loading fixtures</div>;
 
-  // 1. DEFINE ELITE LEAGUES (Where ML stats are most accurate)
-  const topLeagues = [
-    "Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1", 
-    "UEFA Champions League", "UEFA Europa League", "Eredivisie", "Primeira Liga"
-  ];
+  // 1. SMART PUNTER LEAGUE FILTER (Catches all UEFA variations)
+  const isTopLeague = (leagueName: string) => {
+    if (!leagueName) return false;
+    const lower = leagueName.toLowerCase();
+    return lower.includes("uefa") || 
+           lower.includes("champions league") || 
+           lower.includes("europa") ||
+           lower.includes("premier league") || 
+           lower.includes("la liga") || 
+           lower.includes("serie a") || 
+           lower.includes("bundesliga") || 
+           lower.includes("ligue 1") ||
+           lower.includes("eredivisie");
+  };
 
-  // 2. SORT fixtures: Top leagues first, then by date
+  // 2. SORT fixtures: Elite leagues first
   const sortedFixtures = fixtures.sort((a, b) => {
-    const aIsTop = topLeagues.includes(a.league_name) ? -1 : 1;
-    const bIsTop = topLeagues.includes(b.league_name) ? -1 : 1;
+    const aIsTop = isTopLeague(a.league_name) ? -1 : 1;
+    const bIsTop = isTopLeague(b.league_name) ? -1 : 1;
     if (aIsTop !== bIsTop) return aIsTop - bIsTop;
     return new Date(a.match_date).getTime() - new Date(b.match_date).getTime();
   });
 
-  // 3. ONLY process the top 20 most reliable matches of the day to save your limit
+  // 3. Process the top 20
   const matchesToAnalyze = sortedFixtures.slice(0, 20);
 
   const rawResults = await Promise.all(
