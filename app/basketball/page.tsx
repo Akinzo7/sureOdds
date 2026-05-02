@@ -1,40 +1,102 @@
-import { createClient } from "@supabase/supabase-js";
-import { analyzeFixtureWithRealData, AnalyzedBasketballFixture } from "@/lib/logic-engine";
-import BasketballDashboardClient from "./BasketballDashboardClient";
+// ============================================================
+// app/basketball/page.tsx — Server Component
+// ============================================================
+import { createServerSupabaseClient, getApiSportsKey } from '@/lib/supabase-server';
+import {
+  analyzeBasketballFixtureWithRealData,
+  processWithConcurrency,
+  AnalyzedBasketballFixture,
+} from '@/lib/logic-engine';
+import BasketballDashboardClient from './BasketballDashboardClient';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
+
+export const metadata = {
+  title: 'Basketball Analytics — SureOdds',
+  description:
+    'AI-powered basketball predictions for moneyline, point spread, and total points markets.',
+};
 
 export default async function BasketballPage() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const apiSportsKey = process.env.API_SPORTS_KEY!;
+  let supabase;
+  let apiSportsKey: string;
 
-  if (!supabaseUrl || !supabaseKey) {
-    return <div className="py-20 text-center text-red-500">Credentials Missing</div>;
+  try {
+    supabase = createServerSupabaseClient();
+    apiSportsKey = getApiSportsKey();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-lg font-medium text-accent-red">Configuration Error</p>
+        <p className="mt-1 text-sm text-muted">{message}</p>
+      </div>
+    );
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
   const { data: fixtures, error } = await supabase
-    .from("basketball_fixtures")
-    .select("*")
-    .gte("match_date", today.toISOString())
-    .order("match_date", { ascending: true });
+    .from('basketball_fixtures')
+    .select('*')
+    .gte('match_date', today.toISOString())
+    .order('match_date', { ascending: true });
 
-  if (error || !fixtures) return <div>Error loading fixtures</div>;
+  if (error) {
+    console.error('[basketball/page] Supabase query error:', error);
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-lg font-medium text-accent-red">Error loading fixtures</p>
+        <p className="mt-1 text-sm text-muted">{error.message}</p>
+      </div>
+    );
+  }
+
+  if (!fixtures || fixtures.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-lg font-medium text-foreground">No games today</p>
+        <p className="mt-1 text-sm text-muted">
+          Check back later — basketball fixtures are loaded automatically each night.
+        </p>
+      </div>
+    );
+  }
 
   // Process a safe amount of matches to protect your 100/day free API limit
   const matchesToAnalyze = fixtures.slice(0, 20);
 
-  // ONLY USE THE REAL VEGAS API
-  const rawResults = await Promise.all(
-   matchesToAnalyze.map((match) => analyzeFixtureWithRealData(match, apiSportsKey))
-  );
+  // Analyze with concurrency control (3 at a time, 300ms delay between batches)
+  let genuineFixtures: AnalyzedBasketballFixture[];
+  try {
+    const rawResults = await processWithConcurrency(
+      matchesToAnalyze,
+      (match) => analyzeBasketballFixtureWithRealData(match, apiSportsKey),
+      3,
+      300
+    );
+    genuineFixtures = rawResults.filter(
+      (match): match is AnalyzedBasketballFixture => match !== null
+    );
+  } catch (error) {
+    console.error('[basketball/page] Analysis failed:', error);
+    genuineFixtures = [];
+  }
 
-  // FILTER OUT ANY MATCHES THAT DIDN'T GET REAL DATA
-  const genuineFixtures = rawResults.filter((match): match is AnalyzedBasketballFixture => match !== null);
+  if (genuineFixtures.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-lg font-medium text-foreground">
+          Predictions unavailable
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          The prediction API did not return data for today&apos;s games.
+          This usually means the daily API quota has been reached — try again tomorrow.
+        </p>
+      </div>
+    );
+  }
 
   return <BasketballDashboardClient fixtures={genuineFixtures} />;
 }

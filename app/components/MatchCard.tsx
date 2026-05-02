@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, TrendingUp, Plus, Check, Zap } from "lucide-react"; // Added Zap
+import { Clock, TrendingUp, Plus, Check, Zap, AlertTriangle } from "lucide-react";
 
 export interface Match {
   id: string;
@@ -13,9 +13,12 @@ export interface Match {
   confidence: number;
   odds: number;
   prediction: string;
-  // NEW PROPS FOR +EV
+  /** True when model confidence exceeds bookmaker implied probability */
   isPositiveEV?: boolean;
+  /** The margin (in %) between model confidence and implied probability */
   evMargin?: number;
+  /** True when the prediction was generated with fallback data, not real API data */
+  isFallbackPrediction?: boolean;
 }
 
 interface MatchCardProps {
@@ -75,7 +78,7 @@ export default function MatchCard({
           </span>
           <div className="flex items-center gap-1.5 text-xs text-muted">
             <Clock className="h-3 w-3" />
-            <span suppressHydrationWarning>{match.matchTime}</span>
+            <span>{match.matchTime}</span>
           </div>
         </div>
 
@@ -114,9 +117,19 @@ export default function MatchCard({
           </p>
         </div>
 
+        {/* Fallback Prediction Warning */}
+        {match.isFallbackPrediction && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-accent-amber" />
+            <span className="text-[10px] font-medium text-accent-amber">
+              Estimated — real data unavailable
+            </span>
+          </div>
+        )}
+
         {/* GENUINE +EV ALERT (QUANTITATIVE EDGE) */}
-        {match.isPositiveEV && match.evMargin && (
-          <div className="mb-4 flex items-center justify-between rounded-lg border border-accent-green/40 bg-accent-green/10 px-3 py-2 shadow-[0_0_10px_rgba(var(--accent-green),0.1)]">
+        {match.isPositiveEV && match.evMargin != null && match.evMargin > 0 && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-accent-green/40 bg-accent-green/10 px-3 py-2">
             <div className="flex items-center gap-2 text-accent-green">
               <Zap className="h-4 w-4 animate-pulse fill-current" />
               <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -150,7 +163,7 @@ export default function MatchCard({
           <div className="h-1.5 overflow-hidden rounded-full bg-border-subtle">
             <div
               className={`h-full rounded-full transition-all duration-700 ${getConfidenceBarColor(match.confidence)}`}
-              style={{ width: `${match.confidence}%` }}
+              style={{ width: `${Math.min(match.confidence, 100)}%` }}
             />
           </div>
         </div>
@@ -160,7 +173,7 @@ export default function MatchCard({
           <div>
             <p className="text-xs text-muted">Odds</p>
             <p className="text-lg font-bold text-accent-cyan">
-              {match.odds.toFixed(2)}
+              {match.odds > 0 ? match.odds.toFixed(2) : "N/A"}
             </p>
           </div>
           <button

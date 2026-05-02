@@ -32,7 +32,8 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
   }, [fixtures]);
 
   const matches = useMemo(() => {
-    const now = new Date();
+    // Use UTC-based "now" so comparisons match the UTC match_date from Supabase
+    const now = Date.now();
 
     return (
       fixtures
@@ -42,9 +43,8 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
         })
         .filter((fixture) => {
           if (timeFilter === "All") return true;
-          const matchDate = new Date(fixture.match_date);
-          const diffHours =
-            (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+          const matchTime = new Date(fixture.match_date).getTime();
+          const diffHours = (matchTime - now) / (1000 * 60 * 60);
           if (timeFilter === "Next 6 Hours")
             return diffHours >= 0 && diffHours <= 6;
           if (timeFilter === "Next 12 Hours")
@@ -53,104 +53,85 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
             return diffHours >= 0 && diffHours <= 24;
           return true;
         })
-        // 3. THE PUNTER's STRATEGY ALGORITHM
+        // THE PUNTER's STRATEGY ALGORITHM
         .filter((fixture) => {
-          // Over 1.5 is a highly likely event, so we still demand 75% confidence here
           if (activeTab === "over-1.5")
             return fixture.over1_5_probability >= 75;
-
-          // Straight Win: Punters know 70%+ is the sweet spot for a favorite
-          // In DashboardClient.tsx — lower from 70 to 60 to see realistic matches
           if (activeTab === "straight-win")
             return (
               fixture.home_win_probability >= 60 ||
               fixture.away_win_probability >= 60
             );
-
-          // Over 2.5 is riskier, 65% is a very strong signal from an ML model
           if (activeTab === "over-2.5")
             return fixture.over2_5_probability >= 65;
-
-          // Over 3.5 is rare, 55% ML confidence means the model expects a massive blowout
           if (activeTab === "over-3.5")
             return fixture.over3_5_probability >= 55;
-
-          // BTTS: 65% indicates both teams have massive attacking data
           if (activeTab === "btts") return fixture.btts_probability >= 65;
-
-          // Under markets: Demanding 70% ensures a tight, defensive prediction
           if (activeTab === "under-1.5")
             return fixture.under1_5_probability >= 70;
           if (activeTab === "under-2.5")
             return fixture.under2_5_probability >= 70;
           if (activeTab === "under-3.5")
-            return fixture.under3_5_probability >= 75; // Under 3.5 is common, demand higher safety
-
+            return fixture.under3_5_probability >= 75;
           return false;
         })
         .map((fixture): Match => {
           let confidence = 0;
           let prediction = "";
-          let realOdds = 1.0;
+          let realOdds = 0;
 
-          // Use genuine odds pulled directly from Vegas bookmakers
           if (activeTab === "over-1.5") {
             confidence = fixture.over1_5_probability;
             prediction = "Over 1.5 Goals";
-            // @ts-ignore - Temporary bypass until odds API is wired
-            realOdds = fixture.over_1_5_odds || 1.0;
+            realOdds = fixture.over_1_5_odds;
           } else if (activeTab === "straight-win") {
             if (fixture.home_win_probability >= fixture.away_win_probability) {
               confidence = fixture.home_win_probability;
               prediction = `${fixture.home_team_name} Win`;
-              // @ts-ignore
-              realOdds = fixture.home_win_odds || 1.0;
+              realOdds = fixture.home_win_odds;
             } else {
               confidence = fixture.away_win_probability;
               prediction = `${fixture.away_team_name} Win`;
-              // @ts-ignore
-              realOdds = fixture.away_win_odds || 1.0;
+              realOdds = fixture.away_win_odds;
             }
           } else if (activeTab === "over-2.5") {
             confidence = fixture.over2_5_probability;
             prediction = "Over 2.5 Goals";
-            // @ts-ignore
-            realOdds = fixture.over_2_5_odds || 1.0;
+            realOdds = fixture.over_2_5_odds;
           } else if (activeTab === "btts") {
             confidence = fixture.btts_probability;
             prediction = "Both Teams to Score";
-            // @ts-ignore
-            realOdds = fixture.btts_yes_odds || 1.0;
+            realOdds = fixture.btts_yes_odds;
           } else if (activeTab === "over-3.5") {
             confidence = fixture.over3_5_probability;
             prediction = "Over 3.5 Goals";
-            realOdds = 0.0;
+            realOdds = 0;
           } else if (activeTab.startsWith("under")) {
+            const goalThreshold = activeTab.split("-")[1];
             confidence =
               activeTab === "under-1.5"
                 ? fixture.under1_5_probability
                 : activeTab === "under-2.5"
                   ? fixture.under2_5_probability
                   : fixture.under3_5_probability;
-            prediction = `Under ${activeTab.split("-")[1]} Goals`;
-            realOdds = 0.0;
+            prediction = `Under ${goalThreshold} Goals`;
+            realOdds = 0;
           }
 
           // --- THE QUANTITATIVE EDGE CALCULATOR ---
           let isPositiveEV = false;
           let evMargin = 0;
 
-          // In DashboardClient.tsx, change the EV section:
           if (realOdds > 1.01) {
-            // Only calculate when real odds are available
             const impliedProbability = (1 / realOdds) * 100;
             evMargin = confidence - impliedProbability;
             isPositiveEV = evMargin >= 0.5;
           }
-          // When realOdds is 0, isPositiveEV stays false — no crash
+
+          // Format match time with explicit UTC timezone to avoid hydration mismatches
           const matchDateObj = new Date(fixture.match_date);
           const matchTime = fixture.match_date
-            ? `${matchDateObj.toLocaleDateString([], { month: "short", day: "numeric" })} • ${matchDateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            ? `${matchDateObj.toLocaleDateString("en-GB", { month: "short", day: "numeric", timeZone: "UTC" })} • ${matchDateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`
             : "TBD";
 
           return {
@@ -159,14 +140,14 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
             awayTeam: fixture.away_team_name,
             homeTeamLogo: "🛡️",
             awayTeamLogo: "⚔️",
-            matchTime: matchTime,
+            matchTime,
             league: fixture.league_name || "Football",
             confidence,
-            odds: Number(realOdds.toFixed(2)),
+            odds: realOdds > 0 ? Number(realOdds.toFixed(2)) : 0,
             prediction,
-            // @ts-ignore - Temporary bypass until EV is officially added to types
             isPositiveEV,
             evMargin,
+            isFallbackPrediction: fixture.isFallbackPrediction,
           };
         })
         .sort((a, b) => b.confidence - a.confidence)
@@ -200,6 +181,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
 
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <select
+            id="league-filter"
             value={selectedLeague}
             onChange={(e) => setSelectedLeague(e.target.value)}
             className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 hover:border-accent-green focus:border-accent-green focus:ring-2 focus:ring-accent-green/20 appearance-none cursor-pointer min-w-[180px]"
@@ -213,6 +195,7 @@ export default function DashboardClient({ fixtures }: DashboardClientProps) {
           </select>
 
           <select
+            id="time-filter"
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
             className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 hover:border-accent-green focus:border-accent-green focus:ring-2 focus:ring-accent-green/20 appearance-none cursor-pointer min-w-[180px]"

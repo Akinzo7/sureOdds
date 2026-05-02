@@ -39,49 +39,43 @@ export default function BasketballDashboardClient({ fixtures }: DashboardClientP
       .map((fixture): BasketballMatch => {
         let confidence = 0;
         let prediction = "";
-        let odds = 1.90; // Standard baseline for spreads and totals
-        
+        let odds = 1.90;
+
         if (activeTab === "moneyline") {
           if (fixture.home_win_probability >= fixture.away_win_probability && fixture.home_win_probability >= 70) {
              confidence = fixture.home_win_probability;
              prediction = `${fixture.home_team_name} Moneyline`;
-             odds = 1.20 + (100 - confidence) / 50; 
+             odds = 1.20 + (100 - confidence) / 50;
           } else {
              confidence = fixture.away_win_probability;
              prediction = `${fixture.away_team_name} Moneyline`;
              odds = 1.20 + (100 - confidence) / 50;
           }
         } else if (activeTab === "point-spread") {
-          // If home probability > away, they are likely favorites (negative spread)
-          // But our algorithm gives us raw home_spread
           if (fixture.home_spread < 0) {
              confidence = fixture.home_win_probability;
              prediction = `${fixture.home_team_name} ${fixture.home_spread}`;
           } else {
              confidence = fixture.away_win_probability;
-             // If home spread is positive, away spread is negative
              prediction = `${fixture.away_team_name} -${fixture.home_spread}`;
           }
-          // The confidence scale for point spread could just mirror the win probability for simplicity, 
-          // but we ensure it's high enough since it passed the filter.
           odds = 1.90;
         } else if (activeTab === "total-points") {
           if (fixture.projected_total_points >= 210) {
-            // High scoring
             confidence = Math.min(95, 60 + ((fixture.projected_total_points - 210) * 1.5));
             prediction = `Over ${fixture.projected_total_points}`;
           } else {
-            // Low scoring
             confidence = Math.min(95, 60 + ((200 - fixture.projected_total_points) * 1.5));
             prediction = `Under ${fixture.projected_total_points}`;
           }
           odds = 1.90;
         }
 
-       const matchDateObj = new Date(fixture.match_date);
-const matchTime = fixture.match_date 
-  ? `${matchDateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${matchDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-  : "TBD";
+        // Format match time with explicit UTC timezone for consistency
+        const matchDateObj = new Date(fixture.match_date);
+        const matchTime = fixture.match_date
+          ? `${matchDateObj.toLocaleDateString("en-GB", { month: "short", day: "numeric", timeZone: "UTC" })} • ${matchDateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`
+          : "TBD";
 
         return {
           id: String(fixture.fixture_id),
@@ -89,13 +83,14 @@ const matchTime = fixture.match_date
           awayTeam: fixture.away_team_name,
           homeTeamLogo: "🏀",
           awayTeamLogo: "⛹️",
-          matchTime: matchTime,
-        league: fixture.league_name || "Basketball",
+          matchTime,
+          league: fixture.league_name || "Basketball",
           confidence: Math.round(confidence),
           odds: Number(odds.toFixed(2)),
           prediction,
           pointSpread: fixture.home_spread,
-          totalPoints: fixture.projected_total_points
+          totalPoints: fixture.projected_total_points,
+          isFallbackPrediction: fixture.isFallbackPrediction,
         };
       })
       .sort((a, b) => b.confidence - a.confidence);
@@ -149,7 +144,7 @@ const matchTime = fixture.match_date
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {matches.map((match) => (
             <BasketballMatchCard
-              key={match.id + activeTab} 
+              key={match.id + activeTab}
               match={match}
               isSelected={selections.some((s) => s.id === match.id)}
               onToggle={toggleSelection}
