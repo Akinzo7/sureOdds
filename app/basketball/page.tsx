@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { analyzeBasketballFixtureWithRealData, AnalyzedBasketballFixture } from "@/lib/logic-engine";
+import { analyzeFixtureWithRealData, AnalyzedBasketballFixture } from "@/lib/logic-engine";
 import BasketballDashboardClient from "./BasketballDashboardClient";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function BasketballPage() {
 
   // ONLY USE THE REAL VEGAS API
   const rawResults = await Promise.all(
-    matchesToAnalyze.map((match) => analyzeBasketballFixtureWithRealData(match, apiSportsKey))
+   matchesToAnalyze.map((match) => analyzeFixtureWithRealData(match, apiSportsKey))
   );
 
   // FILTER OUT ANY MATCHES THAT DIDN'T GET REAL DATA
