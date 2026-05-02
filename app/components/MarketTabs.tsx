@@ -23,12 +23,15 @@ interface MarketTabsProps {
   tabs: MarketTab[];
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  /** ID prefix for linking tabs to their tabpanel. Defaults to "market" */
+  panelIdPrefix?: string;
 }
 
 export default function MarketTabs({
   tabs,
   activeTab,
   onTabChange,
+  panelIdPrefix = "market",
 }: MarketTabsProps) {
   return (
     <nav
@@ -39,8 +42,11 @@ export default function MarketTabs({
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          id={`${panelIdPrefix}-tab-${tab.id}`}
           role="tab"
           aria-selected={activeTab === tab.id}
+          aria-controls={`${panelIdPrefix}-tabpanel-${tab.id}`}
+          tabIndex={activeTab === tab.id ? 0 : -1}
           onClick={() => onTabChange(tab.id)}
           className={`group flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
             activeTab === tab.id

@@ -25,7 +25,7 @@ export default function LandingPage() {
           <div className="animate-fade-in mb-8 flex items-center gap-2 rounded-full border border-accent-green/20 bg-accent-green/5 px-4 py-2">
             <Zap className="h-4 w-4 text-accent-green" />
             <span className="text-sm font-medium text-accent-green">
-              AI-Powered Analytics Engine
+              Data-Driven Analytics Engine
             </span>
           </div>
 
@@ -45,15 +45,15 @@ export default function LandingPage() {
             across football and basketball markets.
           </p>
 
-          {/* Stats Row */}
+          {/* Stats Row — honest, verifiable claims only */}
           <div
             className="animate-fade-in mt-10 flex flex-wrap items-center justify-center gap-6 sm:gap-10"
             style={{ animationDelay: "0.3s" }}
           >
             {[
-              { label: "Avg Accuracy", value: "87%", icon: Activity },
-              { label: "Daily Matches", value: "200+", icon: BarChart3 },
-              { label: "Markets Covered", value: "12", icon: Shield },
+              { label: "Poisson Model", value: "Stats", icon: Activity },
+              { label: "Leagues Tracked", value: "10+", icon: BarChart3 },
+              { label: "Markets Covered", value: "8", icon: Shield },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-green/10">
@@ -118,8 +118,8 @@ export default function LandingPage() {
                   Basketball Analytics
                 </h2>
                 <p className="mb-6 text-sm leading-relaxed text-muted">
-                  Points totals, spreads, player props and money lines — with
-                  real-time confidence scoring from our AI model.
+                  Points totals, spreads, and money lines — with
+                  real-time confidence scoring from our statistical model.
                 </p>
                 <div className="flex items-center gap-2 text-sm font-semibold text-accent-orange transition-all group-hover:gap-3">
                   Explore Markets
@@ -135,7 +135,7 @@ export default function LandingPage() {
           <p className="text-center text-xs text-muted">
             © {new Date().getFullYear()} SureOdds. For educational and
             analytical purposes only. Past results do not guarantee future
-            outcomes.
+            outcomes. Predictions are model-generated estimates, not guarantees.
           </p>
         </footer>
       </main>

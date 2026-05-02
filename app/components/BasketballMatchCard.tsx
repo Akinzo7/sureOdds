@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, TrendingUp, Plus, Check } from "lucide-react";
+import { Clock, TrendingUp, Plus, Check, AlertTriangle } from "lucide-react";
 import type { Match } from "./MatchCard";
 
 export interface BasketballMatch extends Match {
@@ -65,7 +65,7 @@ export default function BasketballMatchCard({
           </span>
           <div className="flex items-center gap-1.5 text-xs text-muted">
             <Clock className="h-3 w-3" />
-            <span suppressHydrationWarning>{match.matchTime}</span>
+            <span>{match.matchTime}</span>
           </div>
         </div>
 
@@ -104,6 +104,16 @@ export default function BasketballMatchCard({
           </p>
         </div>
 
+        {/* Fallback Prediction Warning */}
+        {match.isFallbackPrediction && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-accent-amber" />
+            <span className="text-[10px] font-medium text-accent-amber">
+              Estimated — real data unavailable
+            </span>
+          </div>
+        )}
+
         {/* Basketball Specific Data (Spread & Total) */}
         <div className="flex items-center gap-2 mb-4">
           <div className="flex-1 rounded-lg bg-background border border-border-subtle py-1.5 flex flex-col items-center">
@@ -141,7 +151,7 @@ export default function BasketballMatchCard({
           <div className="h-1.5 overflow-hidden rounded-full bg-border-subtle">
             <div
               className={`h-full rounded-full transition-all duration-700 ${getConfidenceBarColor(match.confidence)}`}
-              style={{ width: `${match.confidence}%` }}
+              style={{ width: `${Math.min(match.confidence, 100)}%` }}
             />
           </div>
         </div>
@@ -151,7 +161,7 @@ export default function BasketballMatchCard({
           <div>
             <p className="text-xs text-muted">Odds</p>
             <p className="text-lg font-bold text-accent-cyan">
-              {match.odds.toFixed(2)}
+              {match.odds > 0 ? match.odds.toFixed(2) : "N/A"}
             </p>
           </div>
           <button
